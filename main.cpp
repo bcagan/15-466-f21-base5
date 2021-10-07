@@ -16,7 +16,7 @@
 //for screenshots:
 #include "load_save_png.hpp"
 
-//Includes for libSDL:
+//Includes for libSDL: 
 #include <SDL.h>
 
 //...and for c++ standard library functions:
