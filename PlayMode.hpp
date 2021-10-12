@@ -45,4 +45,6 @@ struct PlayMode : Mode {
 	size_t totalVertSize = 0;
 	float stageWinRatio = 1.0f;
 	bool ifWon = false;
+	float timer = 0.f;
+	float timeLimit = 10.f;
 };

@@ -170,6 +170,8 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 }
 
 void PlayMode::update(float elapsed) {
+	if(!ifWon) timer += elapsed;
+	if (timer >= timeLimit) ifWon = true;
 	//player walking:
 	{
 		//combine inputs into a move:
@@ -277,7 +279,8 @@ void PlayMode::update(float elapsed) {
 	up.downs = 0;
 	down.downs = 0;
 
-	if ((float)numClaimed / (float)totalVertSize >= stageWinRatio) ifWon = true;;
+	if ((float)numClaimed / (float)totalVertSize >= stageWinRatio) ifWon = true;
+
 }
 
 void PlayMode::draw(glm::uvec2 const &drawable_size) {
@@ -326,8 +329,9 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		float currentPercentage = (float)numClaimed / (float)totalVertSize; 
 		std::string textString = std::string("");
 		if (!ifWon) textString = std::string("Mouse looks; WASD moves; escape ungrabs mouse; Percentage: ").append(std::to_string(currentPercentage))
-			.append(std::string("; To win: ")).append(std::to_string(stageWinRatio));
-		else textString = std::string("You won! Percentage: ").append(std::to_string(currentPercentage));
+			.append(std::string("; To win: ")).append(std::to_string(stageWinRatio)).append("Time: ").append(std::to_string((int)(timeLimit - timer)));
+		else if (timer < timeLimit) textString = std::string("You won! Percentage: ").append(std::to_string(currentPercentage));
+		else textString = std::string("You Lost.");
 		lines.draw_text(textString.c_str(),
 			glm::vec3(-aspect + 0.1f * H, -1.0 + 0.1f * H, 0.0),
 			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
