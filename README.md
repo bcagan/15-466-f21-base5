@@ -12,9 +12,10 @@ Screen Shot:
 
 How To Play:
 
-(TODO: describe the controls and (if needed) goals/strategy.)
+Walk around with WASD, and try to cover as much area (as many vertices) of the walkable area (originally blue) to turn it
+into orange, as you can before the time runs out.
 
-Sources: (TODO: list a source URL for any assets you did not create yourself. Make sure you have a license for the asset.)
+Sources: lesson 8, walkmesh solutions shared and worked on by the class in the class' discord.
 
 This game was built with [NEST](NEST.md).
 

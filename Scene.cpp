@@ -112,9 +112,9 @@ void Scene::draw(glm::mat4 const &world_to_clip, glm::mat4x3 const &world_to_lig
 		if (drawable.transform->name == "VisualWalkMesh"){
 			glBindBuffer(GL_ARRAY_BUFFER, buffer); 
 			GL_ERRORS();
-			void* bufferLoc = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+			//void* bufferLoc = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
 			GL_ERRORS();
-			memcpy(bufferLoc, drawable.verticesCopy.data(), drawable.verticesCopy.size() * sizeof(Mesh::Vertex));
+			//memcpy(bufferLoc, drawable.verticesCopy.data(), drawable.verticesCopy.size() * sizeof(Mesh::Vertex));
 			glUnmapBuffer(GL_ARRAY_BUFFER); 
 			glBindBuffer(GL_ARRAY_BUFFER, 0);
 		}
