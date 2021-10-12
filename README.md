@@ -1,8 +1,10 @@
-# (TODO: your game's title)
+Speed Paint
 
-Author: (TODO: your name)
+Author: Ben Cagan (bcagan)
 
-Design: (TODO: In two sentences or fewer, describe what is new and interesting about your game.)
+Design: Re-claim as much of the map as you can in the time limit! Change the map
+from orange to blue by walking around it, and get to the needed percentage in the
+time limit.
 
 Screen Shot:
 

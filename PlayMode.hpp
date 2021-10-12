@@ -41,4 +41,5 @@ struct PlayMode : Mode {
 
 	size_t numClaimed = 0;
 	std::vector<bool> claimedVerts;
+	size_t walkmeshInd = 0;
 };

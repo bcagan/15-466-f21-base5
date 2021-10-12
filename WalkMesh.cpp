@@ -242,6 +242,7 @@ std::vector<uint32_t> WalkMesh::getRegion(glm::uvec2 startEdge, std::vector<bool
 	//Then add to a counter once function is done, and update colors, back in PlayMode
 
 	auto outerLoop = [this](glm::uvec2 nextEdge, glm::uvec2 startEdge, std::vector<uint32_t> retVerts, glm::uvec3 triangle,bool* done, std::vector<bool> *claimedVerts) {
+		//std::cout << nextEdge.x << " " << nextEdge.y << " " << startEdge.x << " " << startEdge.y << std::endl;
 
 		if ((*claimedVerts)[nextEdge.x] == false) {
 			(*claimedVerts)[nextEdge.x] = true;
@@ -270,14 +271,14 @@ std::vector<uint32_t> WalkMesh::getRegion(glm::uvec2 startEdge, std::vector<bool
 		if(inTriangle(nextEdge,triangle))
 			nextEdge = glm::uvec2(nextEdge.y, next_vertex.at(nextEdge));
 
-		glm::uvec2 edge = glm::uvec2(startEdge.y, startEdge.x); //Gets flip edge
+		glm::uvec2 edge = glm::uvec2(nextEdge.y, nextEdge.x); //Gets flip edge
 		auto next_edgeIter = next_vertex.find(edge);
 		if (next_edgeIter == next_vertex.end()) { //If not a triangle, just return what has already been found
 			*done = true;
 			return std::make_pair(retVerts, edge);
 		}
 		nextEdge = glm::uvec2(edge.y, next_vertex.at(edge)); //What is next edge here for?
-		if (nextEdge == startEdge) {
+		if (edge == startEdge) {
 			*done = true;
 			return std::make_pair(retVerts, edge);
 		}

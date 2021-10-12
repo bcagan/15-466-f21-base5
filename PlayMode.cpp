@@ -16,6 +16,9 @@
 #include <stdio.h>
 #include <glm/gtx/hash.hpp>
 #define ERROR_VAL 0.0333f
+#define ORANGE_COLOR glm::u8vec4(255, 132, 0,255)
+#define BLUE_COLOR glm::u8vec4(0, 50, 255,255)
+
 
 GLuint scene1_meshes_for_lit_color_texture_program = 0;
 Load< MeshBuffer > scene1_meshes(LoadTagDefault, []() -> MeshBuffer const * {
@@ -38,9 +41,18 @@ Load< Scene > scene1_scene(LoadTagDefault, []() -> Scene const * {
 		drawable.pipeline.start = mesh.start;
 		drawable.pipeline.count = mesh.count;
 		for (size_t ind = mesh.start; ind < mesh.count + mesh.start; ind++) {
-			drawable.posToVert.insert( std::make_pair<glm::vec3,uint32_t>(const_cast<glm::vec3>((mesh.verticesCopy[ind]).Position), ind ));
+			glm::vec3 posVec3;
+			posVec3.x = (mesh.verticesCopy[ind]).Position.x;
+			posVec3.y = (mesh.verticesCopy[ind]).Position.y;
+			posVec3.z = (mesh.verticesCopy[ind]).Position.z;
+			drawable.posToVert.insert({ posVec3, (uint32_t)ind });
 		}
 		drawable.verticesCopy = mesh.verticesCopy;
+		//drawable.vertexColors.reserve(drawable.verticesCopy.size());
+		for (size_t c = 0; c < drawable.vertexColors.size(); c++) {
+		//	drawable.vertexColors[c] = ORANGE_COLOR;
+			(drawable.verticesCopy[c]).Color = ORANGE_COLOR;
+		}
 	});
 });
 
@@ -53,8 +65,17 @@ Load< WalkMeshes > scene1_walkmeshes(LoadTagDefault, []() -> WalkMeshes const * 
 
 PlayMode::PlayMode() : scene(*scene1_scene) {
 	//create a player transform:
+
+	glGenBuffers(1, &(scene.buffer));
 	scene.transforms.emplace_back();
 	player.transform = &scene.transforms.back();
+	size_t drawInd = 0;
+	for (auto whichDraw : scene.drawables) {
+		if (whichDraw.transform->name == std::string("VisualWalkMesh")) {
+			walkmeshInd = drawInd;
+		}
+		drawInd++;
+	};
 
 	//create a player camera attached to a child of the player transform:
 	scene.transforms.emplace_back();
@@ -229,9 +250,15 @@ void PlayMode::update(float elapsed) {
 		}
 
 		//update vertex colors/score
+
+		std::list<Scene::Drawable>::iterator walkmeshIter = scene.drawables.begin(); 
+		std::advance(walkmeshIter, walkmeshInd);
+		Scene::Drawable walkDrawable = *walkmeshIter;
 		std::vector<uint32_t> claimed = walkmesh->getRegion(glm::uvec2(player.at.indices.x,player.at.indices.y),&claimedVerts);
 		numClaimed += (claimed.size());
-
+		for (size_t c = 0; c < claimed.size(); c++) {
+			((walkDrawable).verticesCopy[claimed[c]]).Color = BLUE_COLOR;
+		}
 
 		/*
 		glm::mat4x3 frame = camera->transform->make_local_to_parent();
