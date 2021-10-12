@@ -15,7 +15,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <glm/gtx/hash.hpp>
-#define ERROR_VAL 0.0333f
+#define ERROR_VAL 0.0003f
 #define ORANGE_COLOR glm::u8vec4(255, 132, 0,255)
 #define BLUE_COLOR glm::u8vec4(0, 50, 255,255)
 
