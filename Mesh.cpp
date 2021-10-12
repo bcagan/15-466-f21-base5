@@ -18,14 +18,8 @@ MeshBuffer::MeshBuffer(std::string const &filename) {
 
 	GLuint total = 0;
 
-	struct Vertex {
-		glm::vec3 Position;
-		glm::vec3 Normal;
-		glm::u8vec4 Color;
-		glm::vec2 TexCoord;
-	};
-	static_assert(sizeof(Vertex) == 3*4+3*4+4*1+2*4, "Vertex is packed.");
-	std::vector< Vertex > data;
+	static_assert(sizeof(Mesh::Vertex) == 3*4+3*4+4*1+2*4, "Vertex is packed.");
+	std::vector< Mesh::Vertex > data;
 
 	//read + upload data chunk:
 	if (filename.size() >= 5 && filename.substr(filename.size()-5) == ".pnct") {
@@ -33,16 +27,16 @@ MeshBuffer::MeshBuffer(std::string const &filename) {
 
 		//upload data:
 		glBindBuffer(GL_ARRAY_BUFFER, buffer);
-		glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(Vertex), data.data(), GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(Mesh::Vertex), data.data(), GL_STATIC_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 		total = GLuint(data.size()); //store total for later checks on index
 
 		//store attrib locations:
-		Position = Attrib(3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Position));
-		Normal = Attrib(3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, Normal));
-		Color = Attrib(4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Vertex), offsetof(Vertex, Color));
-		TexCoord = Attrib(2, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, TexCoord));
+		Position = Attrib(3, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), offsetof(Mesh::Vertex, Position));
+		Normal = Attrib(3, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), offsetof(Mesh::Vertex, Normal));
+		Color = Attrib(4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Mesh::Vertex), offsetof(Mesh::Vertex, Color));
+		TexCoord = Attrib(2, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), offsetof(Mesh::Vertex, TexCoord));
 	} else {
 		throw std::runtime_error("Unknown file type '" + filename + "'");
 	}
@@ -72,6 +66,7 @@ MeshBuffer::MeshBuffer(std::string const &filename) {
 			mesh.type = GL_TRIANGLES;
 			mesh.start = entry.vertex_begin;
 			mesh.count = entry.vertex_end - entry.vertex_begin;
+			mesh.verticesCopy = data;
 			for (uint32_t v = entry.vertex_begin; v < entry.vertex_end; ++v) {
 				mesh.min = glm::min(mesh.min, data[v].Position);
 				mesh.max = glm::max(mesh.max, data[v].Position);

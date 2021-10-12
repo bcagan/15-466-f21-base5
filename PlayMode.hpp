@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <deque>
+#include <glm/gtx/hash.hpp> 
 
 struct PlayMode : Mode {
 	PlayMode();
@@ -36,4 +37,8 @@ struct PlayMode : Mode {
 		//camera is at player's head and will be pitched by mouse up/down motion:
 		Scene::Camera *camera = nullptr;
 	} player;
+
+
+	size_t numClaimed = 0;
+	std::vector<bool> claimedVerts;
 };

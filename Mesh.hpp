@@ -14,9 +14,17 @@
 #include <map>
 #include <limits>
 #include <string>
+#include <vector>
+#include <glm/gtx/hash.hpp> //allows the use of 'uvec2' as an unordered_map key
 
 
 struct Mesh {
+	struct Vertex {
+		glm::vec3 Position;
+		glm::vec3 Normal;
+		glm::u8vec4 Color;
+		glm::vec2 TexCoord;
+	};
 	//Meshes are vertex ranges (and primitive types) in their MeshBuffer:
 
 	GLenum type = GL_TRIANGLES; //type of primitives in mesh
@@ -27,6 +35,7 @@ struct Mesh {
 	//useful for debug visualization and (perhaps, eventually) collision detection:
 	glm::vec3 min = glm::vec3( std::numeric_limits< float >::infinity());
 	glm::vec3 max = glm::vec3(-std::numeric_limits< float >::infinity());
+	std::vector<Vertex> verticesCopy;
 };
 
 struct MeshBuffer {

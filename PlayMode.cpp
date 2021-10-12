@@ -12,39 +12,46 @@
 #include <glm/gtx/quaternion.hpp>
 
 #include <random>
+#include <assert.h>
+#include <stdio.h>
+#include <glm/gtx/hash.hpp>
+#define ERROR_VAL 0.0333f
 
-GLuint phonebank_meshes_for_lit_color_texture_program = 0;
-Load< MeshBuffer > phonebank_meshes(LoadTagDefault, []() -> MeshBuffer const * {
-	MeshBuffer const *ret = new MeshBuffer(data_path("phone-bank.pnct"));
-	phonebank_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
+GLuint scene1_meshes_for_lit_color_texture_program = 0;
+Load< MeshBuffer > scene1_meshes(LoadTagDefault, []() -> MeshBuffer const * {
+	MeshBuffer const *ret = new MeshBuffer(data_path("scene1.pnct"));
+	scene1_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
 	return ret;
 });
 
-Load< Scene > phonebank_scene(LoadTagDefault, []() -> Scene const * {
-	return new Scene(data_path("phone-bank.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name){
-		Mesh const &mesh = phonebank_meshes->lookup(mesh_name);
+Load< Scene > scene1_scene(LoadTagDefault, []() -> Scene const * {
+	return new Scene(data_path("scene1.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name){
+		Mesh const &mesh = scene1_meshes->lookup(mesh_name);
 
 		scene.drawables.emplace_back(transform);
 		Scene::Drawable &drawable = scene.drawables.back();
 
 		drawable.pipeline = lit_color_texture_program_pipeline;
 
-		drawable.pipeline.vao = phonebank_meshes_for_lit_color_texture_program;
+		drawable.pipeline.vao = scene1_meshes_for_lit_color_texture_program;
 		drawable.pipeline.type = mesh.type;
 		drawable.pipeline.start = mesh.start;
 		drawable.pipeline.count = mesh.count;
-
+		for (size_t ind = mesh.start; ind < mesh.count + mesh.start; ind++) {
+			drawable.posToVert.insert( std::make_pair<glm::vec3,uint32_t>(const_cast<glm::vec3>((mesh.verticesCopy[ind]).Position), ind ));
+		}
+		drawable.verticesCopy = mesh.verticesCopy;
 	});
 });
 
 WalkMesh const *walkmesh = nullptr;
-Load< WalkMeshes > phonebank_walkmeshes(LoadTagDefault, []() -> WalkMeshes const * {
-	WalkMeshes *ret = new WalkMeshes(data_path("phone-bank.w"));
+Load< WalkMeshes > scene1_walkmeshes(LoadTagDefault, []() -> WalkMeshes const * {
+	WalkMeshes *ret = new WalkMeshes(data_path("scene1.w"));
 	walkmesh = &ret->lookup("WalkMesh");
 	return ret;
 });
 
-PlayMode::PlayMode() : scene(*phonebank_scene) {
+PlayMode::PlayMode() : scene(*scene1_scene) {
 	//create a player transform:
 	scene.transforms.emplace_back();
 	player.transform = &scene.transforms.back();
@@ -65,6 +72,10 @@ PlayMode::PlayMode() : scene(*phonebank_scene) {
 
 	//start player walking at nearest walk point:
 	player.at = walkmesh->nearest_walk_point(player.transform->position);
+
+	claimedVerts.reserve(walkmesh->vertices.size());
+	for (size_t c = 0; c < walkmesh->vertices.size(); c++)
+		claimedVerts[c] = false;
 
 }
 
@@ -147,6 +158,7 @@ void PlayMode::update(float elapsed) {
 		if (down.pressed && !up.pressed) move.y =-1.0f;
 		if (!down.pressed && up.pressed) move.y = 1.0f;
 
+		glm::vec3 startPos = player.transform->position;
 		//make it so that moving diagonally doesn't go faster:
 		if (move != glm::vec2(0.0f)) move = glm::normalize(move) * PlayerSpeed * elapsed;
 
@@ -158,16 +170,17 @@ void PlayMode::update(float elapsed) {
 		for (uint32_t iter = 0; iter < 10; ++iter) {
 			if (remain == glm::vec3(0.0f)) break;
 			WalkPoint end;
-			float time;
+			float time = 0.f;
 			walkmesh->walk_in_triangle(player.at, remain, &end, &time);
-			player.at = end;
+			player.at = end; //crash is here
 			if (time == 1.0f) {
 				//finished within triangle:
 				remain = glm::vec3(0.0f);
 				break;
 			}
+			assert(player.at.weights.z <= ERROR_VAL);
 			//some step remains:
-			remain *= (1.0f - time);
+			remain *= glm::vec3(1.0f - time);
 			//try to step over edge:
 			glm::quat rotation;
 			if (walkmesh->cross_edge(player.at, &end, &rotation)) {
@@ -196,12 +209,15 @@ void PlayMode::update(float elapsed) {
 			}
 		}
 
+
 		if (remain != glm::vec3(0.0f)) {
 			std::cout << "NOTE: code used full iteration budget for walking." << std::endl;
 		}
 
 		//update player's position to respect walking:
 		player.transform->position = walkmesh->to_world_point(player.at);
+		//pos not being updates
+		//assert(move == glm::vec2(0.f) ||  player.transform->position != startPos);
 
 		{ //update player's rotation to respect local (smooth) up-vector:
 			
@@ -211,6 +227,11 @@ void PlayMode::update(float elapsed) {
 			);
 			player.transform->rotation = glm::normalize(adjust * player.transform->rotation);
 		}
+
+		//update vertex colors/score
+		std::vector<uint32_t> claimed = walkmesh->getRegion(glm::uvec2(player.at.indices.x,player.at.indices.y),&claimedVerts);
+		numClaimed += (claimed.size());
+
 
 		/*
 		glm::mat4x3 frame = camera->transform->make_local_to_parent();
@@ -249,6 +270,17 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	glDepthFunc(GL_LESS); //this is the default depth comparison function, but FYI you can change it.
 
 	scene.draw(*player.camera);
+	
+	{
+		glDisable(GL_DEPTH_TEST);
+		DrawLines lines(player.camera->make_projection() * glm::mat4(player.camera->transform->make_world_to_local()));
+		for (auto const &tri : walkmesh->triangles) {
+			lines.draw(walkmesh->vertices[tri.x], walkmesh->vertices[tri.y], glm::u8vec4(0x88, 0x00, 0xff, 0xff));
+			lines.draw(walkmesh->vertices[tri.y], walkmesh->vertices[tri.z], glm::u8vec4(0x88, 0x00, 0xff, 0xff));
+			lines.draw(walkmesh->vertices[tri.z], walkmesh->vertices[tri.x], glm::u8vec4(0x88, 0x00, 0xff, 0xff));
+		}
+	}
+	
 
 	{ //use DrawLines to overlay some text:
 		glDisable(GL_DEPTH_TEST);

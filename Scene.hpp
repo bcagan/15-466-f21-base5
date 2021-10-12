@@ -22,6 +22,9 @@
 #include <vector>
 #include <unordered_map>
 
+#include "Mesh.hpp"
+#include <glm/gtx/hash.hpp>
+
 struct Scene {
 	struct Transform {
 		//Transform names are useful for debugging and looking up locations in a loaded scene:
@@ -78,7 +81,11 @@ struct Scene {
 				GLuint texture = 0;
 				GLenum target = GL_TEXTURE_2D;
 			} textures[TextureCount];
+
+
 		} pipeline;
+		std::unordered_map<glm::vec3, uint32_t> posToVert;
+		std::vector<Mesh::Vertex> verticesCopy;
 	};
 
 	struct Camera {
