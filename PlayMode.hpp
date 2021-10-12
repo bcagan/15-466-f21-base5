@@ -38,8 +38,11 @@ struct PlayMode : Mode {
 		Scene::Camera *camera = nullptr;
 	} player;
 
-
+	//Vertex information
 	size_t numClaimed = 0;
 	std::vector<bool> claimedVerts;
 	size_t walkmeshInd = 0;
+	size_t totalVertSize = 0;
+	float stageWinRatio = 1.0f;
+	bool ifWon = false;
 };

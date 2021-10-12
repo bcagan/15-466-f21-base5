@@ -48,9 +48,7 @@ Load< Scene > scene1_scene(LoadTagDefault, []() -> Scene const * {
 			drawable.posToVert.insert({ posVec3, (uint32_t)ind });
 		}
 		drawable.verticesCopy = mesh.verticesCopy;
-		//drawable.vertexColors.reserve(drawable.verticesCopy.size());
 		for (size_t c = 0; c < drawable.vertexColors.size(); c++) {
-		//	drawable.vertexColors[c] = ORANGE_COLOR;
 			(drawable.verticesCopy[c]).Color = ORANGE_COLOR;
 		}
 	});
@@ -76,6 +74,7 @@ PlayMode::PlayMode() : scene(*scene1_scene) {
 		}
 		drawInd++;
 	};
+	totalVertSize = walkmesh->vertices.size();
 
 	//create a player camera attached to a child of the player transform:
 	scene.transforms.emplace_back();
@@ -97,6 +96,8 @@ PlayMode::PlayMode() : scene(*scene1_scene) {
 	claimedVerts.reserve(walkmesh->vertices.size());
 	for (size_t c = 0; c < walkmesh->vertices.size(); c++)
 		claimedVerts[c] = false;
+
+	stageWinRatio = 0.8f;
 
 }
 
@@ -188,7 +189,7 @@ void PlayMode::update(float elapsed) {
 
 		//using a for() instead of a while() here so that if walkpoint gets stuck in
 		// some awkward case, code will not infinite loop:
-		for (uint32_t iter = 0; iter < 10; ++iter) {
+		for (uint32_t iter = 0; iter < 100; ++iter) {
 			if (remain == glm::vec3(0.0f)) break;
 			WalkPoint end;
 			float time = 0.f;
@@ -250,14 +251,14 @@ void PlayMode::update(float elapsed) {
 		}
 
 		//update vertex colors/score
-
-		std::list<Scene::Drawable>::iterator walkmeshIter = scene.drawables.begin(); 
+		std::list<Scene::Drawable>::iterator walkmeshIter = scene.drawables.begin();
 		std::advance(walkmeshIter, walkmeshInd);
 		Scene::Drawable walkDrawable = *walkmeshIter;
-		std::vector<uint32_t> claimed = walkmesh->getRegion(glm::uvec2(player.at.indices.x,player.at.indices.y),&claimedVerts);
+		std::vector<uint32_t> claimed = walkmesh->getRegion(glm::uvec2(player.at.indices.x, player.at.indices.y), &claimedVerts);
 		numClaimed += (claimed.size());
 		for (size_t c = 0; c < claimed.size(); c++) {
-			((walkDrawable).verticesCopy[claimed[c]]).Color = BLUE_COLOR;
+			uint32_t translatedInd = walkDrawable.posToVert.at(walkmesh->vertices[claimed[c]]); 
+			((walkDrawable).verticesCopy[translatedInd]).Color = BLUE_COLOR;
 		}
 
 		/*
@@ -275,6 +276,8 @@ void PlayMode::update(float elapsed) {
 	right.downs = 0;
 	up.downs = 0;
 	down.downs = 0;
+
+	if ((float)numClaimed / (float)totalVertSize >= stageWinRatio) ifWon = true;;
 }
 
 void PlayMode::draw(glm::uvec2 const &drawable_size) {
@@ -320,12 +323,17 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		));
 
 		constexpr float H = 0.09f;
-		lines.draw_text("Mouse motion looks; WASD moves; escape ungrabs mouse",
+		float currentPercentage = (float)numClaimed / (float)totalVertSize; 
+		std::string textString = std::string("");
+		if (!ifWon) textString = std::string("Mouse looks; WASD moves; escape ungrabs mouse; Percentage: ").append(std::to_string(currentPercentage))
+			.append(std::string("; To win: ")).append(std::to_string(stageWinRatio));
+		else textString = std::string("You won! Percentage: ").append(std::to_string(currentPercentage));
+		lines.draw_text(textString.c_str(),
 			glm::vec3(-aspect + 0.1f * H, -1.0 + 0.1f * H, 0.0),
 			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
 			glm::u8vec4(0x00, 0x00, 0x00, 0x00));
 		float ofs = 2.0f / drawable_size.y;
-		lines.draw_text("Mouse motion looks; WASD moves; escape ungrabs mouse",
+		lines.draw_text(textString.c_str(),
 			glm::vec3(-aspect + 0.1f * H + ofs, -1.0 + + 0.1f * H + ofs, 0.0),
 			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
 			glm::u8vec4(0xff, 0xff, 0xff, 0x00));
