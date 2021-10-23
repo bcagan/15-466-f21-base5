@@ -15,9 +15,16 @@
 #include <assert.h>
 #include <stdio.h>
 #include <glm/gtx/hash.hpp>
-#define ERROR_VAL 0.0003f
+#define ERROR_VAL 0.00003f
 #define ORANGE_COLOR glm::u8vec4(255, 132, 0,255)
 #define BLUE_COLOR glm::u8vec4(0, 50, 255,255)
+
+//To do: 
+/*
+Move VBO for scene into playmoed and make it only for visualwalkmesh
+Create new vao for visualwalkmesh. Handle all this in playmode (ie, don't rely on mesh.cpp)
+Make it so tjhere is only one copy of vertices stored in playmode, the one for visual walk mesh
+Add code to copy walkmesh into a new drawable manually instead of making second mesh*/
 
 
 GLuint scene1_meshes_for_lit_color_texture_program = 0;
@@ -33,24 +40,13 @@ Load< Scene > scene1_scene(LoadTagDefault, []() -> Scene const * {
 
 		scene.drawables.emplace_back(transform);
 		Scene::Drawable &drawable = scene.drawables.back();
-
+		
 		drawable.pipeline = lit_color_texture_program_pipeline;
 
 		drawable.pipeline.vao = scene1_meshes_for_lit_color_texture_program;
 		drawable.pipeline.type = mesh.type;
 		drawable.pipeline.start = mesh.start;
 		drawable.pipeline.count = mesh.count;
-		for (size_t ind = mesh.start; ind < mesh.count + mesh.start; ind++) {
-			glm::vec3 posVec3;
-			posVec3.x = (mesh.verticesCopy[ind]).Position.x;
-			posVec3.y = (mesh.verticesCopy[ind]).Position.y;
-			posVec3.z = (mesh.verticesCopy[ind]).Position.z;
-			drawable.posToVert.insert({ posVec3, (uint32_t)ind });
-		}
-		drawable.verticesCopy = mesh.verticesCopy;
-		for (size_t c = 0; c < drawable.vertexColors.size(); c++) {
-			(drawable.verticesCopy[c]).Color = ORANGE_COLOR;
-		}
 	});
 });
 
@@ -63,17 +59,93 @@ Load< WalkMeshes > scene1_walkmeshes(LoadTagDefault, []() -> WalkMeshes const * 
 
 PlayMode::PlayMode() : scene(*scene1_scene) {
 	//create a player transform:
+	
+	auto createVAO = [this](GLuint program) {
 
-	glGenBuffers(1, &(scene.buffer));
+		glGenBuffers(1, &walkmeshBuffer);
+		GL_ERRORS();
+
+		//Create VBO in the same way as mesh
+		glBindBuffer(GL_ARRAY_BUFFER, walkmeshBuffer);
+		GL_ERRORS();
+		glBufferData(GL_ARRAY_BUFFER, walkmeshData.size() * sizeof(Mesh::Vertex), walkmeshData.data(), GL_DYNAMIC_DRAW);
+		GL_ERRORS();
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		GL_ERRORS();
+		MeshBuffer::Attrib Position = MeshBuffer::Attrib(3, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), offsetof(Mesh::Vertex, Position));
+		MeshBuffer::Attrib Normal = MeshBuffer::Attrib(3, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), offsetof(Mesh::Vertex, Normal));
+		MeshBuffer::Attrib Color = MeshBuffer::Attrib(4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Mesh::Vertex), offsetof(Mesh::Vertex, Color));
+		MeshBuffer::Attrib TexCoord = MeshBuffer::Attrib(2, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), offsetof(Mesh::Vertex, TexCoord));
+
+		//Create  VAO in the same way as mesh and return
+		GLuint vao = 0;
+		glGenVertexArrays(1, &vao);
+		GL_ERRORS();
+		glBindVertexArray(vao);
+		GL_ERRORS();
+
+		//Try to bind all attributes in this buffer:
+		glBindBuffer(GL_ARRAY_BUFFER, walkmeshBuffer);
+		GL_ERRORS();
+		auto bind_attribute = [&](char const* name, MeshBuffer::Attrib const& attrib, GLint program) {
+			if (attrib.size == 0) return; //don't bind empty attribs
+			GLint location = glGetAttribLocation(program, name);
+			GL_ERRORS();
+			if (location == -1) return; //can't bind missing attribs
+			glVertexAttribPointer(location, attrib.size, attrib.type, attrib.normalized, attrib.stride, (GLbyte*)0 + attrib.offset);
+			GL_ERRORS();
+			glEnableVertexAttribArray(location);
+			GL_ERRORS();
+		};
+		bind_attribute("Position", Position, program);
+		bind_attribute("Normal", Normal, program);
+		bind_attribute("Color", Color, program);
+		bind_attribute("TexCoord", TexCoord, program);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		GL_ERRORS();
+		glBindVertexArray(0);
+		GL_ERRORS();
+
+		return vao;
+
+	};
+	//Creating transform causes issues
+	scene.transforms.emplace_back();
+	Scene::Transform* transformPoint = &scene.transforms.back();
+	Scene::Drawable newDrawable = Scene::Drawable(transformPoint);
+	scene.drawables.push_back(newDrawable);
+	walkmeshDrawable= &scene.drawables.back();
+
 	scene.transforms.emplace_back();
 	player.transform = &scene.transforms.back();
-	size_t drawInd = 0;
-	for (auto whichDraw : scene.drawables) {
-		if (whichDraw.transform->name == std::string("VisualWalkMesh")) {
-			walkmeshInd = drawInd;
-		}
-		drawInd++;
-	};
+
+	//Create vertices
+	walkmeshDataVerts.reserve(walkmesh->vertices.size());
+	for (size_t ind = 0; ind < walkmesh->vertices.size(); ind++) {
+		Mesh::Vertex newVert;
+		newVert.Position = walkmesh->vertices[ind];
+		newVert.Normal = walkmesh->normals[ind];
+		newVert.Color = ORANGE_COLOR;
+		newVert.TexCoord = glm::uvec2(1.0f, 1.0f); //TexCord isn't used
+		walkmeshDataVerts.push_back( newVert);
+	}
+	walkmeshData.reserve(walkmesh->triangles.size() * 3);
+	for (size_t ind = 0; ind < walkmesh->triangles.size(); ind++) {
+		Mesh::Vertex vert0 = walkmeshDataVerts[walkmesh->triangles[ind].x];
+		Mesh::Vertex vert1 = walkmeshDataVerts[walkmesh->triangles[ind].y];
+		Mesh::Vertex vert2 = walkmeshDataVerts[walkmesh->triangles[ind].z];
+		walkmeshData.push_back(vert0);
+		walkmeshData.push_back(vert1);
+		walkmeshData.push_back(vert2);
+	}
+	
+	walkmeshDrawable->pipeline = lit_color_texture_program_pipeline;
+	walkmeshDrawable->pipeline.program = lit_color_texture_program->program;
+	walkmeshDrawable->pipeline.vao = createVAO(lit_color_texture_program->program);
+	walkmeshDrawable->pipeline.type = scene.drawables.front().pipeline.type;
+	walkmeshDrawable->pipeline.count = (GLuint)(walkmesh->triangles.size() * 3);
+	walkmeshDrawable->pipeline.start = 0;
+	walkmeshDrawable->transform->name = std::string("walkmeshDrawable");
 	totalVertSize = walkmesh->vertices.size();
 
 	//create a player camera attached to a child of the player transform:
@@ -253,24 +325,11 @@ void PlayMode::update(float elapsed) {
 		}
 
 		//update vertex colors/score
-		std::list<Scene::Drawable>::iterator walkmeshIter = scene.drawables.begin();
-		std::advance(walkmeshIter, walkmeshInd);
-		Scene::Drawable walkDrawable = *walkmeshIter;
 		std::vector<uint32_t> claimed = walkmesh->getRegion(glm::uvec2(player.at.indices.x, player.at.indices.y), &claimedVerts);
 		numClaimed += (claimed.size());
 		for (size_t c = 0; c < claimed.size(); c++) {
-			uint32_t translatedInd = walkDrawable.posToVert.at(walkmesh->vertices[claimed[c]]); 
-			((walkDrawable).verticesCopy[translatedInd]).Color = BLUE_COLOR;
+			walkmeshDataVerts[claimed[c]].Color = BLUE_COLOR;
 		}
-
-		/*
-		glm::mat4x3 frame = camera->transform->make_local_to_parent();
-		glm::vec3 right = frame[0];
-		//glm::vec3 up = frame[1];
-		glm::vec3 forward = -frame[2];
-
-		camera->transform->position += move.x * right + move.y * forward;
-		*/
 	}
 
 	//reset button press counters:
@@ -302,17 +361,27 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS); //this is the default depth comparison function, but FYI you can change it.
 
-	scene.draw(*player.camera);
-	
-	{
-		glDisable(GL_DEPTH_TEST);
-		DrawLines lines(player.camera->make_projection() * glm::mat4(player.camera->transform->make_world_to_local()));
-		for (auto const &tri : walkmesh->triangles) {
-			lines.draw(walkmesh->vertices[tri.x], walkmesh->vertices[tri.y], glm::u8vec4(0x88, 0x00, 0xff, 0xff));
-			lines.draw(walkmesh->vertices[tri.y], walkmesh->vertices[tri.z], glm::u8vec4(0x88, 0x00, 0xff, 0xff));
-			lines.draw(walkmesh->vertices[tri.z], walkmesh->vertices[tri.x], glm::u8vec4(0x88, 0x00, 0xff, 0xff));
-		}
+	//Update walkmesh triangle data
+	for (size_t ind = 0; ind < walkmesh->triangles.size(); ind++) {
+		Mesh::Vertex vert0 = walkmeshDataVerts[walkmesh->triangles[ind].x];
+		Mesh::Vertex vert1 = walkmeshDataVerts[walkmesh->triangles[ind].y];
+		Mesh::Vertex vert2 = walkmeshDataVerts[walkmesh->triangles[ind].z];
+		walkmeshData[3 * ind] = vert0;
+		walkmeshData[3 * ind + 1] = vert1;
+		walkmeshData[3 * ind + 2] = vert2;
 	}
+
+	//Update vertex colors for walkmesh
+	glBindBuffer(GL_ARRAY_BUFFER, walkmeshBuffer);
+	GL_ERRORS();
+	void* bufferLoc = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+	GL_ERRORS();
+	assert(bufferLoc != nullptr);
+	memcpy(bufferLoc, walkmeshData.data(), walkmeshData.size() * sizeof(Mesh::Vertex));
+	glUnmapBuffer(GL_ARRAY_BUFFER);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	scene.draw(*player.camera);
 	
 
 	{ //use DrawLines to overlay some text:

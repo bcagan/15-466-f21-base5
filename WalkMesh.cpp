@@ -12,7 +12,7 @@
 #include <vector>
 #include <glm/gtx/hash.hpp> //allows the use of 'uvec2' as an unordered_map key
 
-#define ERROR_VAL 0.0003f
+#define ERROR_VAL 0.00003f
 
 WalkMesh::WalkMesh(std::vector< glm::vec3 > const& vertices_, std::vector< glm::vec3 > const& normals_, std::vector< glm::uvec3 > const& triangles_)
 	: vertices(vertices_), normals(normals_), triangles(triangles_) {

@@ -41,10 +41,14 @@ struct PlayMode : Mode {
 	//Vertex information
 	size_t numClaimed = 0;
 	std::vector<bool> claimedVerts;
-	size_t walkmeshInd = 0;
 	size_t totalVertSize = 0;
 	float stageWinRatio = 1.0f;
 	bool ifWon = false;
 	float timer = 0.f;
-	float timeLimit = 10.f;
+	float timeLimit = 15.f;
+	Scene::Transform transform;
+	Scene::Drawable *walkmeshDrawable;
+	GLuint walkmeshBuffer = 0;
+	std::vector< Mesh::Vertex > walkmeshDataVerts; //Verts are updated quickly, then they are passed to the triangle data
+	std::vector< Mesh::Vertex > walkmeshData;
 };

@@ -26,7 +26,6 @@
 #include <glm/gtx/hash.hpp>
 
 struct Scene {
-	GLuint buffer = 0;
 	struct Transform {
 		//Transform names are useful for debugging and looking up locations in a loaded scene:
 		std::string name;
@@ -85,9 +84,6 @@ struct Scene {
 
 
 		} pipeline;
-		std::unordered_map<glm::vec3, uint32_t> posToVert;
-		std::vector<Mesh::Vertex> verticesCopy;
-		std::vector<glm::vec3> vertexColors;
 	};
 
 	struct Camera {
